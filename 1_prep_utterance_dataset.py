@@ -7,7 +7,7 @@ import polars as pl
 
 pl.Config.set_tbl_cols(-1)
 # pl.Config.set_tbl_rows(-1)
-pl.Config.set_tbl_width_chars(700)
+pl.Config.set_tbl_width_chars(500)
 pl.Config.set_fmt_str_lengths(100)
 from utils import extract_utterances, find_audio
 
@@ -26,6 +26,7 @@ files = pl.DataFrame(df["filename"].unique()).with_columns(
     audio_file=pl.col("filename").map_elements(find_audio, return_dtype=pl.String)
 )
 df = df.join(files, on="filename", how="left")
+print(df)
 print("Filtering out instances with no words:")
 df = df.filter(pl.col("w_count") > 0)
 print(df)
