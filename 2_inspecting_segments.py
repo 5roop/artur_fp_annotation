@@ -2,7 +2,7 @@ import polars as pl
 from tqdm import tqdm
 from pydub import AudioSegment
 import numpy as np
-
+from utils import get_ends, get_starts
 df = pl.read_ndjson(
     "/ceph/home/ivanp/parla_fp/artur_fp_annotation/2_utterances_segmented.jsonl"
 )
@@ -39,20 +39,6 @@ def prep_segments(start, end, chunk_duration=30, overlap=5):
     return starts[c], ends[c]
 
 
-def get_starts(s: str):
-    import re
-
-    pattern = r".*avd_(\d*\.\d*)-(\d*\.\d*).*"
-    start = float(re.match(pattern, s).group(1))
-    return start
-
-
-def get_ends(s: str):
-    import re
-
-    pattern = r".*avd_(\d*\.\d*)-(\d*\.\d*).*"
-    end = float(re.match(pattern, s).group(2))
-    return end
 
 
 def validate_segments_duration(row) -> bool:

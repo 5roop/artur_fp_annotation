@@ -57,3 +57,19 @@ def find_audio(p: str | Path):
         raise AttributeError("No hits found!")
     else:
         raise AttributeError("Multiple hits found!")
+
+
+def get_starts(s: str):
+    import re
+
+    pattern = r".*avd_(\d*\.\d*)-(\d*\.\d*).*"
+    start = float(re.match(pattern, s).group(1))
+    return start
+
+
+def get_ends(s: str):
+    import re
+
+    pattern = r".*avd_(\d*\.\d*)-(\d*\.\d*).*"
+    end = float(re.match(pattern, s).group(2))
+    return end
