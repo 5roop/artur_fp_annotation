@@ -17,6 +17,24 @@ def translate_times(row: dict) -> list:
     return results
 
 
+def inhibit_hits_that_start_at_zero(L: list) -> list:
+    L = list(L)
+    if L == []:
+        return L
+    if L[0][0] == 0.0:
+        L.pop(0)
+    return L
+
+
+def filter_intervals_by_length(L: list):
+    LIM = 0.08
+    L = list(L)
+    if L == []:
+        return L
+    else:
+        return [i for i in L if i[1] - i[0] > LIM]
+
+
 def join_elements(L: list) -> list:
     results = []
     for l in L:
@@ -57,13 +75,20 @@ speakers = pl.read_csv(
 )
 
 fps = (
-    pl.read_ndjson("/ceph/home/ivanp/parla_fp/3_filled_pauses.jsonl")
+    pl.read_ndjson("/ceph/home/ivanp/parla_fp/scripts/3_filled_pauses.jsonl")
     .with_columns(
         segment_file=pl.col("segment_path").map_elements(
             lambda s: Path(s).name, return_dtype=pl.String
         ),
         segment_start=pl.col("segment_path").map_elements(
             lambda s: get_starts(s), return_dtype=pl.Float32
+        ),
+        filled_pauses=pl.col("filled_pauses")
+        .map_elements(
+            inhibit_hits_that_start_at_zero, return_dtype=pl.List(pl.List(pl.Float64))
+        )
+        .map_elements(
+            filter_intervals_by_length, return_dtype=pl.List(pl.List(pl.Float64))
         ),
     )
     .with_columns(
@@ -73,9 +98,7 @@ fps = (
     )
 )
 
-df = pl.read_ndjson(
-    "/ceph/home/ivanp/parla_fp/artur_fp_annotation/2_utterances_segmented.jsonl"
-)
+df = pl.read_ndjson("/ceph/home/ivanp/parla_fp/scripts/2_utterances_segmented.jsonl")
 
 print(f"Before merging: {df.shape=}")
 audio_mapper = (

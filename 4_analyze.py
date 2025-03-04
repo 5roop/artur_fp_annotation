@@ -1,4 +1,4 @@
-from scipy.stats import ttest_ind
+from scipy.stats import ttest_ind, wilcoxon, ranksums
 import polars as pl
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -39,6 +39,7 @@ df = (
     .filter(pl.col("who").is_not_null())
     .group_by("who")
     .agg(
+        pl.col("ident").n_unique().alias("utterances_per_speaker"),
         pl.col("w_count").sum(),
         pl.col("FP_count").sum(),
         pl.col("FP_duration").sum(),
@@ -57,11 +58,27 @@ df = (
         (pl.col("FP_duration") / pl.col("duration")).alias("FP_duratio"),
         (pl.col("w_count") / pl.col("duration")).alias("wps"),
     )
+    .filter(pl.col("w_count") >= 1000)
 )
 
+g = sns.displot(
+    df,
+    x="utterances_per_speaker",
+    kind="hist",
+    hue="type",
+    multiple="dodge",
+    bins=10,
+    binrange=[0, 100],
+)
+g.savefig("images/utterances_distribution.png")
+g = sns.displot(
+    df, x="w_count", kind="hist", hue="type", multiple="dodge", binrange=[0, 6000]
+)
+g.savefig("images/w_count_distribution.png")
 
 metric = "FP_per_minute"
-for metric in "FP_per_minute FP_duratio FP_percent".split():
+# for metric in "FP_per_minute FP_duratio FP_percent".split():
+for metric in ["FP_percent"]:
     print(
         df.group_by("SEX")
         .agg(
@@ -80,12 +97,15 @@ for metric in "FP_per_minute FP_duratio FP_percent".split():
     print("Metric:", metric)
     male = df.filter(pl.col("SEX").eq("moški"))[f"{metric}"].to_list()
     female = df.filter(pl.col("SEX").eq("ženski"))[f"{metric}"].to_list()
-    t_stat, p_value = ttest_ind(male, female, equal_var=True, alternative="less")
-    print(f"P value (alternative: male < female): {p_value:0.3f}")
-
+    res = ranksums(male, female, alternative="less")
+    t_stat, p_value = res.statistic, res.pvalue
+    print(f"P value  ranksums (alternative: male < female): {p_value:0.3f}")
+    res = ttest_ind(male, female, alternative="less", equal_var=False)
+    t_stat, p_value = res.statistic, res.pvalue
+    print(f"P value  ttest (alternative: male < female): {p_value:0.3f}")
     for type in df["type"].unique().sort():
         print(
-            f"Type: {type}",
+            f"Within type: {type}",
         )
         male = df.filter(pl.col("type").eq(type) & pl.col("SEX").eq("moški"))[
             f"{metric}"
@@ -93,9 +113,12 @@ for metric in "FP_per_minute FP_duratio FP_percent".split():
         female = df.filter(pl.col("type").eq(type) & pl.col("SEX").eq("ženski"))[
             f"{metric}"
         ].to_list()
-
-        t_stat, p_value = ttest_ind(male, female, equal_var=True, alternative="less")
-        print(f"P value (alternative: male < female): {p_value:0.3f}")
+        res = ranksums(male, female, alternative="less")
+        t_stat, p_value = res.statistic, res.pvalue
+        print(f"P value  ranksums (alternative: male < female): {p_value:0.3f}")
+        res = ttest_ind(male, female, alternative="less", equal_var=False)
+        t_stat, p_value = res.statistic, res.pvalue
+        print(f"P value  ttest (alternative: male < female): {p_value:0.3f}")
 
     sns.catplot(df, x="type", y=f"{metric}", kind="box")
     plt.gcf().savefig(f"images/box__{metric}__type.png")
